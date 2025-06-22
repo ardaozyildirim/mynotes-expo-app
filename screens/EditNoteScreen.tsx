@@ -12,11 +12,13 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList, Note } from '../App';
 
-type AddNoteScreenProps = NativeStackScreenProps<RootStackParamList, 'AddNote'>;
+type EditNoteScreenProps = NativeStackScreenProps<RootStackParamList, 'EditNote'>;
 
-const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
-  const [title, setTitle] = useState<string>('');
-  const [content, setContent] = useState<string>('');
+const EditNoteScreen: React.FC<EditNoteScreenProps> = ({ navigation, route }) => {
+  const { note, noteIndex } = route.params;
+  
+  const [title, setTitle] = useState<string>(note.title);
+  const [content, setContent] = useState<string>(note.content);
 
   const handleSaveNote = () => {
     // Validate inputs
@@ -30,19 +32,15 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
       return;
     }
 
-    // Create a new note
-    const newNote: Note = {
-      id: Date.now().toString(), // Simple unique ID generation
+    // Create updated note
+    const updatedNote: Note = {
+      ...note,
       title: title.trim(),
       content: content.trim()
     };
 
-    // Log the note for debugging
-    console.log('Başlık:', newNote.title);
-    console.log('İçerik:', newNote.content);
-
-    // Navigate back to Home screen with the new note
-    navigation.navigate('Home', { newNote });
+    // Navigate back to Home screen with the updated note
+    navigation.navigate('Home', { updatedNote, noteIndex });
   };
 
   return (
@@ -67,7 +65,7 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
         />
         
         <Button
-          title="Notu Kaydet"
+          title="Değişiklikleri Kaydet"
           onPress={handleSaveNote}
           color="#007AFF"
         />
@@ -102,4 +100,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddNoteScreen; 
+export default EditNoteScreen; 

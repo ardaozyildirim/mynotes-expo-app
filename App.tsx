@@ -7,11 +7,29 @@ import 'react-native-gesture-handler';
 
 import HomeScreen from './screens/HomeScreen';
 import AddNoteScreen from './screens/AddNoteScreen';
+import NotesListScreen from './screens/NotesListScreen';
+import NoteDetailScreen from './screens/NoteDetailScreen';
+import EditNoteScreen from './screens/EditNoteScreen';
+
+// Define the Note type
+export type Note = {
+  id: string;
+  title: string;
+  content: string;
+};
 
 // Define the type for our stack navigator
-type RootStackParamList = {
-  Home: undefined;
+export type RootStackParamList = {
+  Home: { 
+    newNote?: Note;
+    updatedNote?: Note;
+    noteIndex?: number;
+    deleteNoteId?: string;
+  } | undefined;
   AddNote: undefined;
+  NotesList: undefined;
+  NoteDetail: { note: Note };
+  EditNote: { note: Note; noteIndex: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +48,21 @@ export default function App() {
             name="AddNote" 
             component={AddNoteScreen} 
             options={{ title: 'Not Ekle' }}
+          />
+          <Stack.Screen 
+            name="NotesList" 
+            component={NotesListScreen} 
+            options={{ title: 'Notlarım' }}
+          />
+          <Stack.Screen 
+            name="NoteDetail" 
+            component={NoteDetailScreen} 
+            options={{ title: 'Not Detayı' }}
+          />
+          <Stack.Screen 
+            name="EditNote" 
+            component={EditNoteScreen} 
+            options={{ title: 'Notu Düzenle' }}
           />
         </Stack.Navigator>
         <StatusBar style="auto" />
