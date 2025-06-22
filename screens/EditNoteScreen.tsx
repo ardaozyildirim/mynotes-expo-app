@@ -1,122 +1,301 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect, useContext, useEffect } from 'react';
 import { 
   View, 
-  Text, 
   TextInput, 
-  Button, 
   StyleSheet, 
-  TouchableWithoutFeedback,
+  Pressable, 
+  Text,
+  Alert,
   Keyboard,
-  Alert
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList, Note } from '../App';
+import { RootStackParamList, ThemeContext } from '../App';
+import { Note, NotesService } from '../utils/storage';
 
 type EditNoteScreenProps = NativeStackScreenProps<RootStackParamList, 'EditNote'>;
 
 const EditNoteScreen: React.FC<EditNoteScreenProps> = ({ navigation, route }) => {
-  const { note, noteIndex, fromNoteDetail } = route.params;
+  const { isDarkMode } = useContext(ThemeContext);
+  const { noteId } = route.params;
   
-  const [title, setTitle] = useState<string>(note.title);
-  const [content, setContent] = useState<string>(note.content);
-
-  const handleSaveNote = () => {
-    // Validate inputs
-    if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title.');
-      return;
-    }
-
-    if (!content.trim()) {
-      Alert.alert('Error', 'Please enter note content.');
-      return;
-    }
-
-    // Create updated note
-    const updatedNote: Note = {
-      ...note,
-      title: title.trim(),
-      content: content.trim()
+  const [note, setNote] = useState<Note | null>(null);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Animation values
+  const titleOpacity = new Animated.Value(0);
+  const contentOpacity = new Animated.Value(0);
+  
+  // Load the note when component mounts
+  useEffect(() => {
+    const loadNote = async () => {
+      try {
+        const fetchedNote = await NotesService.getNoteById(noteId);
+        if (fetchedNote) {
+          setNote(fetchedNote);
+          setTitle(fetchedNote.title);
+          setContent(fetchedNote.content);
+          
+          // Start animations
+          Animated.stagger(150, [
+            Animated.timing(titleOpacity, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true
+            }),
+            Animated.timing(contentOpacity, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true
+            })
+          ]).start();
+        } else {
+          Alert.alert('Error', 'Note not found');
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error('Error loading note:', error);
+        Alert.alert('Error', 'Failed to load note');
+        navigation.goBack();
+      } finally {
+        setIsLoading(false);
+      }
     };
+    
+    loadNote();
+  }, [noteId]);
 
-    if (fromNoteDetail) {
-      // If coming from NoteDetailScreen, we need to:
-      // 1. Navigate back to the detail screen with the updated note
-      // 2. Also update the note in the Home screen
-      navigation.navigate('NoteDetail', { note: updatedNote });
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={saveNote}
+          style={({ pressed }) => [
+            styles.saveButton,
+            { opacity: pressed ? 0.7 : 1 }
+          ]}
+          disabled={isSaving || isLoading}
+        >
+          <Text style={styles.saveButtonText}>Save</Text>
+        </Pressable>
+      ),
+      headerStyle: {
+        backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
+      },
+      headerTitleStyle: {
+        color: isDarkMode ? '#ffffff' : '#000000',
+      },
+      headerTintColor: isDarkMode ? '#ffffff' : '#000000',
+    });
+  }, [navigation, title, content, isSaving, isLoading, isDarkMode]);
+
+  const saveNote = async () => {
+    if (!note) return;
+    
+    if (title.trim() === '') {
+      Alert.alert('Error', 'Title cannot be empty');
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
+      Keyboard.dismiss();
       
-      // Also update in HomeScreen (the index will be found there)
-      navigation.navigate('Home', { updatedNote, noteIndex: -1, fromNoteDetail: true });
-    } else {
-      // Reset the navigation stack to Home to avoid back button
-      navigation.reset({
-        index: 0,
-        routes: [
-          { 
-            name: 'Home', 
-            params: { updatedNote, noteIndex }
-          }
-        ],
-      });
+      // Update the note using the NotesService
+      const updatedNote: Note = {
+        ...note,
+        title: title.trim(),
+        content: content.trim(),
+      };
+      
+      const success = await NotesService.updateNote(updatedNote);
+      
+      if (success) {
+        // Navigate back to home screen
+        navigation.goBack();
+      } else {
+        Alert.alert('Error', 'Failed to update note');
+        setIsSaving(false);
+      }
+    } catch (error) {
+      console.error('Error updating note:', error);
+      Alert.alert('Error', 'Failed to update note');
+      setIsSaving(false);
     }
   };
 
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Enter note title"
-        />
-        
-        <Text style={styles.label}>Content</Text>
-        <TextInput
-          style={[styles.input, styles.contentInput]}
-          value={content}
-          onChangeText={setContent}
-          placeholder="Enter note content"
-          multiline
-          textAlignVertical="top"
-        />
-        
-        <Button
-          title="Save Changes"
-          onPress={handleSaveNote}
-          color="#007AFF"
-        />
+  if (isLoading) {
+    return (
+      <View style={[
+        styles.container, 
+        styles.loadingContainer,
+        isDarkMode && styles.containerDark
+      ]}>
+        <ActivityIndicator size="large" color={isDarkMode ? "#fff" : "#007AFF"} />
+        <Text style={[
+          styles.loadingText,
+          isDarkMode && styles.loadingTextDark
+        ]}>
+          Loading note...
+        </Text>
       </View>
-    </TouchableWithoutFeedback>
+    );
+  }
+
+  return (
+    <View style={[
+      styles.container,
+      isDarkMode && styles.containerDark
+    ]}>
+      {isSaving ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={isDarkMode ? "#fff" : "#007AFF"} />
+          <Text style={[
+            styles.loadingText,
+            isDarkMode && styles.loadingTextDark
+          ]}>
+            Saving note...
+          </Text>
+        </View>
+      ) : (
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          enabled
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Animated.View style={{ opacity: titleOpacity }}>
+              <TextInput
+                style={[
+                  styles.titleInput,
+                  isDarkMode && styles.titleInputDark
+                ]}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Title"
+                placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
+                autoFocus
+                selectTextOnFocus
+              />
+            </Animated.View>
+            
+            <Animated.View style={[
+              styles.contentContainer,
+              { opacity: contentOpacity }
+            ]}>
+              <TextInput
+                style={[
+                  styles.contentInput,
+                  isDarkMode && styles.contentInputDark
+                ]}
+                value={content}
+                onChangeText={setContent}
+                placeholder="Write your note here..."
+                placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
+                multiline
+                textAlignVertical="top"
+              />
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f7f7f7',
+  },
+  containerDark: {
+    backgroundColor: '#121212',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContainer: {
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    paddingBottom: 100,
+    minHeight: '100%',
   },
-  label: {
-    fontSize: 16,
+  titleInput: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 5,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
+    marginBottom: 20,
     padding: 10,
-    fontSize: 16,
-    height: 50,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    color: '#000',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  titleInputDark: {
+    backgroundColor: '#2a2a2a',
+    color: '#fff',
+  },
+  contentContainer: {
+    flex: 1,
+    minHeight: 300,
   },
   contentInput: {
-    height: 300,
-    marginBottom: 20,
-    textAlignVertical: 'top',
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    color: '#000',
+    minHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  contentInputDark: {
+    backgroundColor: '#2a2a2a',
+    color: '#fff',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  loadingTextDark: {
+    color: '#ccc',
   },
 });
 
