@@ -8,8 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActionSheetIOS,
-  Platform,
-  Button
+  Platform
 } from 'react-native';
 import { 
   NativeStackNavigationProp, 
@@ -19,7 +18,6 @@ import {
   useFocusEffect 
 } from '@react-navigation/native';
 import { RootStackParamList, Note } from '../App';
-import { saveNotesToFile, saveNotesToDirectory } from '../utils/saveNotes';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -32,61 +30,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     }
   ]);
 
-  // Handle backup of notes
-  const handleBackupNotes = async () => {
-    try {
-      // First save the notes to a temporary file
-      const saveResult = await saveNotesToFile(notes);
-      
-      if (saveResult.success && saveResult.path && saveResult.filename) {
-        console.log('Notes saved to temporary file:', saveResult.path);
-        
-        // Then prompt the user to select a directory to save the file
-        await saveNotesToDirectory(saveResult.path, saveResult.filename);
-        
-        // The saveNotesToDirectory function now handles its own alerts
-      } else {
-        console.error('Save error:', saveResult.error);
-        Alert.alert(
-          'Backup Error',
-          'An error occurred while saving notes. Please try again.',
-          [{ text: 'OK', style: 'default' }]
-        );
-      }
-    } catch (error) {
-      console.error('Backup process error:', error);
-      Alert.alert(
-        'Backup Error',
-        'An unexpected error occurred while backing up notes.',
-        [{ text: 'OK', style: 'default' }]
-      );
-    }
-  };
-
   // Add the + button to the header
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={styles.headerButtons}>
-          <Pressable
-            onPress={handleBackupNotes}
-            style={({ pressed }) => [
-              styles.backupButton,
-              { opacity: pressed ? 0.7 : 1 }
-            ]}
-          >
-            <Text style={styles.backupButtonText}>💾</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('AddNote')}
-            style={({ pressed }) => [
-              styles.addButton,
-              { opacity: pressed ? 0.7 : 1 }
-            ]}
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => navigation.navigate('AddNote')}
+          style={({ pressed }) => [
+            styles.addButton,
+            { opacity: pressed ? 0.7 : 1 }
+          ]}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </Pressable>
       ),
     });
   }, [navigation, notes]);
@@ -194,7 +150,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  // Confirm note deletion
+  // Confirm deletion of a note
   const confirmDelete = (note: Note) => {
     Alert.alert(
       'Delete Note',
@@ -204,8 +160,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         { 
           text: 'Delete', 
           onPress: () => {
-            // Delete the note
-            setNotes(currentNotes => currentNotes.filter(item => item.id !== note.id));
+            // Delete the note and navigate back to home
+            navigation.setParams({ deleteNoteId: note.id });
           },
           style: 'destructive'
         }
@@ -221,34 +177,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       onLongPress={() => handleNoteLongPress(item, index)}
       delayLongPress={500}
     >
-      <Text style={styles.noteTitle}>{item.title}</Text>
+      <Text style={styles.noteTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.noteContent} numberOfLines={2}>{item.content}</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      {notes.length > 0 ? (
-        <FlatList
-          data={notes}
-          renderItem={renderNoteItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No notes added yet</Text>
-          <Text style={styles.emptySubText}>Tap the + button in the top right to add a note</Text>
-        </View>
-      )}
-      
-      <View style={styles.backupButtonContainer}>
-        <Button 
-          title="Backup Notes" 
-          onPress={handleBackupNotes} 
-          color="#007AFF"
-        />
-      </View>
+      <FlatList
+        data={notes}
+        renderItem={renderNoteItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.notesList}
+      />
     </View>
   );
 };
@@ -257,89 +198,61 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 10,
   },
-  listContainer: {
-    paddingBottom: 80, // Extra padding for the backup button
+  notesList: {
+    padding: 15,
   },
   noteCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
-    marginVertical: 8,
-    marginHorizontal: 5,
-    elevation: 2,
+    marginBottom: 15,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
   },
   noteTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
+    marginBottom: 5,
   },
   noteContent: {
     fontSize: 14,
-    color: '#666',
+    color: '#555',
+  },
+  addButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  addButtonText: {
+    fontSize: 24,
+    color: 'white',
+    fontWeight: 'bold',
+    marginTop: -2,
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  addButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  addButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
-    lineHeight: 28,
-    textAlign: 'center',
-  },
   backupButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#34C759',
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: '#4CD964',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   backupButtonText: {
     fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  backupButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#999',
-    marginBottom: 10,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+    color: 'white',
   },
 });
 
