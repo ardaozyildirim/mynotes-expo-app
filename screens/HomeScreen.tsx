@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   ActionSheetIOS,
-  Platform
+  Platform,
+  Button
 } from 'react-native';
 import { 
   NativeStackNavigationProp, 
@@ -18,6 +19,7 @@ import {
   useFocusEffect 
 } from '@react-navigation/native';
 import { RootStackParamList, Note } from '../App';
+import { saveNotesToFile, shareNotesFile } from '../utils/saveNotes';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -25,32 +27,74 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const [notes, setNotes] = useState<Note[]>([
     {
       id: '1',
-      title: 'Alışveriş Listesi',
-      content: 'Ekmek, süt, yumurta, peynir, meyve almayı unutma.'
-    },
-    {
-      id: '2',
-      title: 'Toplantı Notları',
-      content: 'Pazartesi günü saat 14:00\'da proje toplantısı var. Sunum hazırlamayı unutma.'
+      title: 'Welcome to MyNotesApp',
+      content: 'This is a simple note-taking app. You can add, edit, and delete notes.'
     }
   ]);
+
+  // Handle backup of notes
+  const handleBackupNotes = async () => {
+    try {
+      // First save the notes to a temporary file
+      const saveResult = await saveNotesToFile(notes);
+      
+      if (saveResult.success && saveResult.path && saveResult.filename) {
+        // Then prompt the user to select where to save the file
+        const shareResult = await shareNotesFile(saveResult.path, saveResult.filename);
+        
+        if (shareResult.success) {
+          console.log('Dosya başarıyla paylaşıldı');
+        } else {
+          Alert.alert(
+            'Paylaşım Hatası',
+            'Dosya paylaşılırken bir hata oluştu.',
+            [{ text: 'Tamam', style: 'default' }]
+          );
+        }
+      } else {
+        Alert.alert(
+          'Yedekleme Hatası',
+          'Notlar kaydedilirken bir hata oluştu.',
+          [{ text: 'Tamam', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('Yedekleme işlemi hatası:', error);
+      Alert.alert(
+        'Yedekleme Hatası',
+        'Notlar kaydedilirken bir hata oluştu.',
+        [{ text: 'Tamam', style: 'default' }]
+      );
+    }
+  };
 
   // Add the + button to the header
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable
-          onPress={() => navigation.navigate('AddNote')}
-          style={({ pressed }) => [
-            styles.addButton,
-            { opacity: pressed ? 0.7 : 1 }
-          ]}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            onPress={handleBackupNotes}
+            style={({ pressed }) => [
+              styles.backupButton,
+              { opacity: pressed ? 0.7 : 1 }
+            ]}
+          >
+            <Text style={styles.backupButtonText}>💾</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('AddNote')}
+            style={({ pressed }) => [
+              styles.addButton,
+              { opacity: pressed ? 0.7 : 1 }
+            ]}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </Pressable>
+        </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, notes]);
 
   // Check for new notes, updated notes, or deleted notes when screen comes into focus
   useFocusEffect(
@@ -176,6 +220,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           <Text style={styles.emptySubText}>Sağ üstteki + butonuna tıklayarak not ekleyebilirsiniz</Text>
         </View>
       )}
+      
+      <View style={styles.backupButtonContainer}>
+        <Button 
+          title="Notları Yedekle" 
+          onPress={handleBackupNotes} 
+          color="#007AFF"
+        />
+      </View>
     </View>
   );
 };
@@ -187,7 +239,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 80, // Extra padding for the backup button
   },
   noteCard: {
     backgroundColor: '#ffffff',
@@ -211,6 +263,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   addButton: {
     width: 30,
     height: 30,
@@ -226,6 +282,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     lineHeight: 28,
     textAlign: 'center',
+  },
+  backupButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  backupButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  backupButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
   },
   emptyContainer: {
     flex: 1,
