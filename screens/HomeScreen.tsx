@@ -19,7 +19,7 @@ import {
   useFocusEffect 
 } from '@react-navigation/native';
 import { RootStackParamList, Note } from '../App';
-import { saveNotesToFile, shareNotesFile } from '../utils/saveNotes';
+import { saveNotesToFile, saveNotesToDirectory } from '../utils/saveNotes';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -39,31 +39,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       const saveResult = await saveNotesToFile(notes);
       
       if (saveResult.success && saveResult.path && saveResult.filename) {
-        // Then prompt the user to select where to save the file
-        const shareResult = await shareNotesFile(saveResult.path, saveResult.filename);
+        console.log('Notes saved to temporary file:', saveResult.path);
         
-        if (shareResult.success) {
-          console.log('Dosya başarıyla paylaşıldı');
-        } else {
-          Alert.alert(
-            'Paylaşım Hatası',
-            'Dosya paylaşılırken bir hata oluştu.',
-            [{ text: 'Tamam', style: 'default' }]
-          );
-        }
+        // Then prompt the user to select a directory to save the file
+        await saveNotesToDirectory(saveResult.path, saveResult.filename);
+        
+        // The saveNotesToDirectory function now handles its own alerts
       } else {
+        console.error('Save error:', saveResult.error);
         Alert.alert(
-          'Yedekleme Hatası',
-          'Notlar kaydedilirken bir hata oluştu.',
-          [{ text: 'Tamam', style: 'default' }]
+          'Backup Error',
+          'An error occurred while saving notes. Please try again.',
+          [{ text: 'OK', style: 'default' }]
         );
       }
     } catch (error) {
-      console.error('Yedekleme işlemi hatası:', error);
+      console.error('Backup process error:', error);
       Alert.alert(
-        'Yedekleme Hatası',
-        'Notlar kaydedilirken bir hata oluştu.',
-        [{ text: 'Tamam', style: 'default' }]
+        'Backup Error',
+        'An unexpected error occurred while backing up notes.',
+        [{ text: 'OK', style: 'default' }]
       );
     }
   };
@@ -96,6 +91,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     });
   }, [navigation, notes]);
 
+  // Find note index by ID
+  const findNoteIndexById = (noteId: string): number => {
+    return notes.findIndex(note => note.id === noteId);
+  };
+
   // Check for new notes, updated notes, or deleted notes when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -107,14 +107,35 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       }
       
       // Handle updated note
-      if (route.params?.updatedNote && route.params?.noteIndex !== undefined) {
-        const { updatedNote, noteIndex } = route.params;
-        setNotes(currentNotes => {
-          const newNotes = [...currentNotes];
-          newNotes[noteIndex] = updatedNote;
-          return newNotes;
+      if (route.params?.updatedNote) {
+        const { updatedNote, noteIndex, fromNoteDetail } = route.params;
+        
+        // If coming from NoteDetail, we need to find the note by ID
+        if (fromNoteDetail && noteIndex === -1) {
+          const foundIndex = findNoteIndexById(updatedNote.id);
+          if (foundIndex !== -1) {
+            setNotes(currentNotes => {
+              const newNotes = [...currentNotes];
+              newNotes[foundIndex] = updatedNote;
+              return newNotes;
+            });
+          }
+        } 
+        // Standard update with known index
+        else if (noteIndex !== undefined && noteIndex >= 0) {
+          setNotes(currentNotes => {
+            const newNotes = [...currentNotes];
+            newNotes[noteIndex] = updatedNote;
+            return newNotes;
+          });
+        }
+        
+        // Clear the params
+        navigation.setParams({ 
+          updatedNote: undefined, 
+          noteIndex: undefined,
+          fromNoteDetail: undefined 
         });
-        navigation.setParams({ updatedNote: undefined, noteIndex: undefined });
       }
       
       // Handle deleted note
@@ -123,7 +144,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         setNotes(currentNotes => currentNotes.filter(note => note.id !== deleteId));
         navigation.setParams({ deleteNoteId: undefined });
       }
-    }, [route.params?.newNote, route.params?.updatedNote, route.params?.deleteNoteId])
+    }, [route.params?.newNote, route.params?.updatedNote, route.params?.deleteNoteId, route.params?.fromNoteDetail])
   );
 
   // Handle note press - navigate to detail view
@@ -137,7 +158,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       // For iOS, use ActionSheetIOS
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['İptal', 'Düzenle', 'Sil'],
+          options: ['Cancel', 'Edit', 'Delete'],
           destructiveButtonIndex: 2,
           cancelButtonIndex: 0,
           title: note.title
@@ -155,16 +176,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     } else {
       // For Android, use Alert with buttons
       Alert.alert(
-        'Not İşlemleri',
-        `"${note.title}" için işlem seçin`,
+        'Note Actions',
+        `Select an action for "${note.title}"`,
         [
-          { text: 'İptal', style: 'cancel' },
+          { text: 'Cancel', style: 'cancel' },
           { 
-            text: 'Düzenle', 
+            text: 'Edit', 
             onPress: () => navigation.navigate('EditNote', { note, noteIndex: index }) 
           },
           { 
-            text: 'Sil', 
+            text: 'Delete', 
             onPress: () => confirmDelete(note),
             style: 'destructive'
           }
@@ -176,12 +197,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Confirm note deletion
   const confirmDelete = (note: Note) => {
     Alert.alert(
-      'Notu Sil',
-      `"${note.title}" notunu silmek istediğinizden emin misiniz?`,
+      'Delete Note',
+      `Are you sure you want to delete "${note.title}"?`,
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Sil', 
+          text: 'Delete', 
           onPress: () => {
             // Delete the note
             setNotes(currentNotes => currentNotes.filter(item => item.id !== note.id));
@@ -216,14 +237,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Henüz not eklenmemiş</Text>
-          <Text style={styles.emptySubText}>Sağ üstteki + butonuna tıklayarak not ekleyebilirsiniz</Text>
+          <Text style={styles.emptyText}>No notes added yet</Text>
+          <Text style={styles.emptySubText}>Tap the + button in the top right to add a note</Text>
         </View>
       )}
       
       <View style={styles.backupButtonContainer}>
         <Button 
-          title="Notları Yedekle" 
+          title="Backup Notes" 
           onPress={handleBackupNotes} 
           color="#007AFF"
         />

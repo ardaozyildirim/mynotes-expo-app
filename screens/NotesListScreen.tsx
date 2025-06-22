@@ -21,27 +21,30 @@ const NotesListScreen: React.FC<NotesListScreenProps> = ({ navigation }) => {
   const dummyNotes: NoteWithDate[] = [
     {
       id: '1',
-      title: 'Alışveriş Listesi',
-      content: 'Ekmek, süt, yumurta, peynir, meyve almayı unutma.',
-      date: '10 Haziran 2023'
+      title: 'Shopping List',
+      content: 'Remember to buy bread, milk, eggs, cheese, and fruit.',
+      date: 'June 10, 2023'
     },
     {
       id: '2',
-      title: 'Toplantı Notları',
-      content: 'Pazartesi günü saat 14:00\'da proje toplantısı var. Sunum hazırlamayı unutma.',
-      date: '15 Haziran 2023'
+      title: 'Meeting Notes',
+      content: 'Project meeting on Monday at 2:00 PM. Don\'t forget to prepare the presentation.',
+      date: 'June 15, 2023'
     },
     {
       id: '3',
-      title: 'Kitap Önerileri',
+      title: 'Book Recommendations',
       content: 'Sapiens, Atomic Habits, Deep Work, The Psychology of Money.',
-      date: '20 Haziran 2023'
+      date: 'June 20, 2023'
     }
   ];
 
   // Render each note item
   const renderNoteItem = ({ item }: { item: NoteWithDate }) => (
-    <TouchableOpacity style={styles.noteCard}>
+    <TouchableOpacity 
+      style={styles.noteCard}
+      onPress={() => navigation.navigate('NoteDetail', { note: item })}
+    >
       <Text style={styles.noteTitle}>{item.title}</Text>
       <Text style={styles.noteContent}>{item.content}</Text>
       <Text style={styles.noteDate}>{item.date}</Text>

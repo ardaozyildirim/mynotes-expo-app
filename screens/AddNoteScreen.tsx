@@ -21,12 +21,12 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
   const handleSaveNote = () => {
     // Validate inputs
     if (!title.trim()) {
-      Alert.alert('Hata', 'Lütfen bir başlık girin.');
+      Alert.alert('Error', 'Please enter a title.');
       return;
     }
 
     if (!content.trim()) {
-      Alert.alert('Hata', 'Lütfen not içeriğini girin.');
+      Alert.alert('Error', 'Please enter note content.');
       return;
     }
 
@@ -38,36 +38,44 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
     };
 
     // Log the note for debugging
-    console.log('Başlık:', newNote.title);
-    console.log('İçerik:', newNote.content);
+    console.log('Title:', newNote.title);
+    console.log('Content:', newNote.content);
 
-    // Navigate back to Home screen with the new note
-    navigation.navigate('Home', { newNote });
+    // Reset navigation to Home to avoid back button
+    navigation.reset({
+      index: 0,
+      routes: [
+        { 
+          name: 'Home', 
+          params: { newNote }
+        }
+      ],
+    });
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <Text style={styles.label}>Başlık</Text>
+        <Text style={styles.label}>Title</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
-          placeholder="Not başlığını girin"
+          placeholder="Enter note title"
         />
         
-        <Text style={styles.label}>İçerik</Text>
+        <Text style={styles.label}>Content</Text>
         <TextInput
           style={[styles.input, styles.contentInput]}
           value={content}
           onChangeText={setContent}
-          placeholder="Not içeriğini girin"
+          placeholder="Enter note content"
           multiline
           textAlignVertical="top"
         />
         
         <Button
-          title="Notu Kaydet"
+          title="Save Note"
           onPress={handleSaveNote}
           color="#007AFF"
         />
@@ -95,10 +103,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     fontSize: 16,
+    height: 50,
   },
   contentInput: {
-    height: 150,
+    height: 300,
     marginBottom: 20,
+    textAlignVertical: 'top',
   },
 });
 

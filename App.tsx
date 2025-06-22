@@ -25,11 +25,16 @@ export type RootStackParamList = {
     updatedNote?: Note;
     noteIndex?: number;
     deleteNoteId?: string;
+    fromNoteDetail?: boolean;
   } | undefined;
   AddNote: undefined;
   NotesList: undefined;
   NoteDetail: { note: Note };
-  EditNote: { note: Note; noteIndex: number };
+  EditNote: { 
+    note: Note; 
+    noteIndex: number; 
+    fromNoteDetail?: boolean;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -38,31 +43,36 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
+        <Stack.Navigator 
+          initialRouteName="Home"
+          screenOptions={{
+            headerBackTitle: 'Back'
+          }}
+        >
           <Stack.Screen 
             name="Home" 
             component={HomeScreen} 
-            options={{ title: 'Not Uygulaması' }}
+            options={{ title: 'Notes App' }}
           />
           <Stack.Screen 
             name="AddNote" 
             component={AddNoteScreen} 
-            options={{ title: 'Not Ekle' }}
+            options={{ title: 'Add Note' }}
           />
           <Stack.Screen 
             name="NotesList" 
             component={NotesListScreen} 
-            options={{ title: 'Notlarım' }}
+            options={{ title: 'My Notes' }}
           />
           <Stack.Screen 
             name="NoteDetail" 
             component={NoteDetailScreen} 
-            options={{ title: 'Not Detayı' }}
+            options={{ title: 'Note Details' }}
           />
           <Stack.Screen 
             name="EditNote" 
             component={EditNoteScreen} 
-            options={{ title: 'Notu Düzenle' }}
+            options={{ title: 'Edit Note' }}
           />
         </Stack.Navigator>
         <StatusBar style="auto" />

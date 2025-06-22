@@ -15,7 +15,7 @@ import { RootStackParamList, Note } from '../App';
 type EditNoteScreenProps = NativeStackScreenProps<RootStackParamList, 'EditNote'>;
 
 const EditNoteScreen: React.FC<EditNoteScreenProps> = ({ navigation, route }) => {
-  const { note, noteIndex } = route.params;
+  const { note, noteIndex, fromNoteDetail } = route.params;
   
   const [title, setTitle] = useState<string>(note.title);
   const [content, setContent] = useState<string>(note.content);
@@ -23,12 +23,12 @@ const EditNoteScreen: React.FC<EditNoteScreenProps> = ({ navigation, route }) =>
   const handleSaveNote = () => {
     // Validate inputs
     if (!title.trim()) {
-      Alert.alert('Hata', 'Lütfen bir başlık girin.');
+      Alert.alert('Error', 'Please enter a title.');
       return;
     }
 
     if (!content.trim()) {
-      Alert.alert('Hata', 'Lütfen not içeriğini girin.');
+      Alert.alert('Error', 'Please enter note content.');
       return;
     }
 
@@ -39,33 +39,51 @@ const EditNoteScreen: React.FC<EditNoteScreenProps> = ({ navigation, route }) =>
       content: content.trim()
     };
 
-    // Navigate back to Home screen with the updated note
-    navigation.navigate('Home', { updatedNote, noteIndex });
+    if (fromNoteDetail) {
+      // If coming from NoteDetailScreen, we need to:
+      // 1. Navigate back to the detail screen with the updated note
+      // 2. Also update the note in the Home screen
+      navigation.navigate('NoteDetail', { note: updatedNote });
+      
+      // Also update in HomeScreen (the index will be found there)
+      navigation.navigate('Home', { updatedNote, noteIndex: -1, fromNoteDetail: true });
+    } else {
+      // Reset the navigation stack to Home to avoid back button
+      navigation.reset({
+        index: 0,
+        routes: [
+          { 
+            name: 'Home', 
+            params: { updatedNote, noteIndex }
+          }
+        ],
+      });
+    }
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <Text style={styles.label}>Başlık</Text>
+        <Text style={styles.label}>Title</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
-          placeholder="Not başlığını girin"
+          placeholder="Enter note title"
         />
         
-        <Text style={styles.label}>İçerik</Text>
+        <Text style={styles.label}>Content</Text>
         <TextInput
           style={[styles.input, styles.contentInput]}
           value={content}
           onChangeText={setContent}
-          placeholder="Not içeriğini girin"
+          placeholder="Enter note content"
           multiline
           textAlignVertical="top"
         />
         
         <Button
-          title="Değişiklikleri Kaydet"
+          title="Save Changes"
           onPress={handleSaveNote}
           color="#007AFF"
         />
@@ -93,10 +111,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     fontSize: 16,
+    height: 50,
   },
   contentInput: {
-    height: 150,
+    height: 300,
     marginBottom: 20,
+    textAlignVertical: 'top',
   },
 });
 
