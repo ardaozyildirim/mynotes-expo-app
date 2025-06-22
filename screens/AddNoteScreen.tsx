@@ -8,10 +8,8 @@ import {
   Alert,
   Keyboard,
   Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  SafeAreaView
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList, ThemeContext } from '../App';
@@ -24,26 +22,6 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  
-  // Animation values
-  const titleOpacity = new Animated.Value(0);
-  const contentOpacity = new Animated.Value(0);
-  
-  // Start animations when component mounts
-  React.useEffect(() => {
-    Animated.stagger(150, [
-      Animated.timing(titleOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true
-      }),
-      Animated.timing(contentOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true
-      })
-    ]).start();
-  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -96,68 +74,56 @@ const AddNoteScreen: React.FC<AddNoteScreenProps> = ({ navigation }) => {
     }
   };
 
+  if (isSaving) {
+    return (
+      <View style={[
+        styles.container,
+        styles.loadingContainer,
+        isDarkMode && styles.containerDark
+      ]}>
+        <ActivityIndicator size="large" color={isDarkMode ? "#fff" : "#007AFF"} />
+        <Text style={[
+          styles.loadingText,
+          isDarkMode && styles.loadingTextDark
+        ]}>
+          Saving note...
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[
+    <SafeAreaView style={[
       styles.container,
       isDarkMode && styles.containerDark
     ]}>
-      {isSaving ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={isDarkMode ? "#fff" : "#007AFF"} />
-          <Text style={[
-            styles.loadingText,
-            isDarkMode && styles.loadingTextDark
-          ]}>
-            Saving note...
-          </Text>
-        </View>
-      ) : (
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoid}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-          enabled
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <Animated.View style={{ opacity: titleOpacity }}>
-              <TextInput
-                style={[
-                  styles.titleInput,
-                  isDarkMode && styles.titleInputDark
-                ]}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Title"
-                placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
-                autoFocus
-              />
-            </Animated.View>
-            
-            <Animated.View style={[
-              styles.contentContainer,
-              { opacity: contentOpacity }
-            ]}>
-              <TextInput
-                style={[
-                  styles.contentInput,
-                  isDarkMode && styles.contentInputDark
-                ]}
-                value={content}
-                onChangeText={setContent}
-                placeholder="Write your note here..."
-                placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
-                multiline
-                textAlignVertical="top"
-              />
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      )}
-    </View>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={[
+            styles.titleInput,
+            isDarkMode && styles.titleInputDark
+          ]}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Title"
+          placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
+          autoFocus
+        />
+        
+        <TextInput
+          style={[
+            styles.contentInput,
+            isDarkMode && styles.contentInputDark
+          ]}
+          value={content}
+          onChangeText={setContent}
+          placeholder="Write your note here..."
+          placeholderTextColor={isDarkMode ? "#777" : "#aaa"}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -169,13 +135,9 @@ const styles = StyleSheet.create({
   containerDark: {
     backgroundColor: '#121212',
   },
-  keyboardAvoid: {
+  inputContainer: {
     flex: 1,
-  },
-  scrollContainer: {
     padding: 20,
-    paddingBottom: 100,
-    minHeight: '100%',
   },
   titleInput: {
     fontSize: 24,
@@ -194,10 +156,6 @@ const styles = StyleSheet.create({
   titleInputDark: {
     backgroundColor: '#2a2a2a',
     color: '#fff',
-  },
-  contentContainer: {
-    flex: 1,
-    minHeight: 300,
   },
   contentInput: {
     flex: 1,
@@ -231,7 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   loadingContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
