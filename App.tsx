@@ -86,7 +86,7 @@ export default function App() {
             <Stack.Screen 
               name="Home" 
               component={HomeScreen} 
-              options={{ title: 'Notes App' }}
+              options={{ title: 'MyNotesApp' }}
             />
             <Stack.Screen 
               name="AddNote" 
